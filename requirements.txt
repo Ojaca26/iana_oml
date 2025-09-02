@@ -4,4 +4,3 @@ langchain-google-genai
 langchain
 SQLAlchemy
 PyMySQL
-plotly
