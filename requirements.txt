@@ -2,5 +2,6 @@ streamlit
 pandas
 langchain-google-genai
 langchain
+langchain-community
 SQLAlchemy
 PyMySQL
