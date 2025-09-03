@@ -216,7 +216,8 @@ def obtener_datos_sql(pregunta_usuario: str) -> dict:
     res_nat = ejecutar_sql_en_lenguaje_natural(pregunta_usuario)
     return {"sql": None, "df": res_nat["df"], "texto": res_nat["texto"]}
 
-def orquestador(pregunta_usuario: str):
+# REEMPLAZA ESTA FUNCIÓN COMPLETA
+def orquestador(pregunta_usuario: str, chat_history: list):
     with st.expander("⚙️ Ver Proceso de IANA", expanded=False):
         st.info(f"🚀 Recibido: '{pregunta_usuario}'")
         with st.spinner("🔍 IANA está analizando tu pregunta..."):
@@ -226,18 +227,33 @@ def orquestador(pregunta_usuario: str):
         if clasificacion == "conversacional":
             return responder_conversacion(pregunta_usuario)
 
+        # --- INICIO DE LA LÓGICA DE MEMORIA ---
+        if clasificacion == "analista":
+            # Revisa el último mensaje en el historial
+            if chat_history and len(chat_history) > 0:
+                ultimo_mensaje = chat_history[-1]
+                # Si el último mensaje es de IANA y contiene una tabla de datos...
+                if ultimo_mensaje["role"] == "assistant" and "df" in ultimo_mensaje["content"]:
+                    df_contexto = ultimo_mensaje["content"]["df"]
+                    if df_contexto is not None and not df_contexto.empty:
+                        st.info("💡 Usando datos de la conversación anterior para el análisis...")
+                        # Llama directamente al analista con los datos previos
+                        analisis = analizar_con_datos(pregunta_usuario, "Datos de la tabla anterior.", df_contexto)
+                        # Devuelve la tabla anterior junto con el nuevo análisis
+                        return {"tipo": "analista", "df": df_contexto, "texto": None, "analisis": analisis}
+        # --- FIN DE LA LÓGICA DE MEMORIA ---
+
+        # Si no hay contexto en el chat, sigue el flujo normal
         res_datos = obtener_datos_sql(pregunta_usuario)
         resultado = {"tipo": clasificacion, **res_datos, "analisis": None}
         
-        # >> CAMBIO: Lógica mejorada para evitar el doble mensaje de error.
         if clasificacion == "analista":
             if res_datos.get("df") is not None and not res_datos["df"].empty:
                 analisis = analizar_con_datos(pregunta_usuario, res_datos.get("texto", ""), res_datos["df"])
                 resultado["analisis"] = analisis
             else:
-                # Si el análisis falla por falta de datos, mostramos un solo mensaje claro.
                 resultado["texto"] = "Para poder realizar un análisis, primero necesito datos. Por favor, haz una pregunta más específica para obtener la información que quieres analizar."
-                resultado["df"] = None # Nos aseguramos de que no haya tabla de datos
+                resultado["df"] = None
     return resultado
 
 # ============================================
@@ -264,10 +280,10 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            res = orquestador(prompt)
+            # >> CAMBIO AQUÍ: Pasa el historial de mensajes al orquestador
+            res = orquestador(prompt, st.session_state.messages)
             
             st.markdown(f"### IANA responde a: '{prompt}'")
-            # La lógica de visualización ahora es más simple
             if res.get("df") is not None and not res["df"].empty:
                 st.dataframe(res["df"])
             
@@ -280,5 +296,3 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
-
-
