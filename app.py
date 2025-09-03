@@ -73,7 +73,11 @@ def get_sql_agent(_llm, _db):
         return None
     with st.spinner("🛠️ Configurando agente SQL de IANA..."):
         toolkit = SQLDatabaseToolkit(db=_db, llm=_llm)
-        agent = create_sql_agent(llm=_llm, toolkit=toolkit, verbose=False)
+        agent = create_sql_agent(
+            llm=_llm, 
+            toolkit=toolkit, 
+            verbose=False,
+            top_k=1000)
         st.success("✅ Agente SQL configurado.")
         return agent
 
@@ -140,16 +144,17 @@ def ejecutar_sql_real(pregunta_usuario: str):
         st.warning(f"❌ Error en la consulta directa. Intentando un método alternativo... Error: {e}")
         return {"sql": None, "df": None, "error": str(e)}
 
-# REEMPLAZA TAMBIÉN ESTA OTRA FUNCIÓN
+
 def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
     st.info("🤔 La consulta directa falló. Activando el agente SQL experto de IANA como plan B.")
     
-    # >> CAMBIO: Le ordenamos explícitamente que devuelva TODOS los resultados.
+    # >> CAMBIO CLAVE: El prompt ahora es mucho más estricto y prohíbe resúmenes.
     prompt_sql = (
-        "Responde consultando la BD. Devuelve un resultado legible en tabla/resumen. "
-        "IMPORTANTE: Devuelve SIEMPRE TODOS los resultados que coincidan, no solo una muestra. "
+        "Tu tarea es responder la pregunta del usuario consultando la base de datos. "
+        "Debes devolver ÚNICAMENTE una tabla de datos en formato Markdown. "
+        "REGLA CRÍTICA: Devuelve SIEMPRE TODAS las filas de datos que encuentres. NUNCA resumas, trunques ni expliques los resultados. No agregues texto como 'Se muestran las 10 primeras filas' o 'Aquí está la tabla'. "
         "Responde siempre en español. "
-        "Pregunta: "
+        "Pregunta del usuario: "
         f"{pregunta_usuario}"
     )
     try:
@@ -162,6 +167,7 @@ def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
     except Exception as e:
         st.error(f"❌ El agente SQL experto también encontró un problema: {e}")
         return {"texto": f"[SQL_ERROR] {e}", "df": pd.DataFrame()}
+
 
 def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame | None):
     st.info("\n🧠 Ahora, el analista experto de IANA está examinando los datos...")
@@ -317,6 +323,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
