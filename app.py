@@ -104,24 +104,33 @@ def _df_preview(df: pd.DataFrame, n: int = 20) -> str:
     try: return df.head(n).to_markdown(index=False)
     except Exception: return df.head(n).to_string(index=False)
 
+
 def ejecutar_sql_real(pregunta_usuario: str):
     st.info("🤖 Entendido. El agente de datos de IANA está traduciendo tu pregunta a SQL...")
-    # >> CAMBIO: Eliminada la mención a 'data_farma' que podría ver el usuario.
+    
+    # >> CAMBIO: Instrucciones más claras sobre cómo agrupar los datos.
     prompt_con_instrucciones = f"""
-    Tu tarea es generar una consulta SQL para los datos de Farmacapsulas basada en la pregunta del usuario.
-    Aquí están las columnas más importantes y sus significados:
-    - `FECHA_SOLICITUD`: La fecha en que se solicitó el servicio (DATE).
-    - `CATEGORIA_SERVICIO`: La categoría principal del servicio (TEXT).
-    - `TIPO`: Un subtipo o clasificación del servicio (TEXT).
-    - `CANTIDAD_SERVICIOS`: El conteo de servicios realizados.
-    - `TOTAL_HORAS`: El total de horas dedicadas a un servicio.
-    REGLA CLAVE: Nunca agregues un 'LIMIT' a la consulta a menos que el usuario lo pida explícitamente.
-    Pregunta original del usuario: "{pregunta_usuario}"
+    Tu tarea es generar una consulta SQL para los datos de Farmacapsulas.
+    
+    Presta mucha atención a palabras como 'diariamente', 'mensual', 'por tipo', etc. La cláusula GROUP BY debe coincidir exactamente con lo que pide el usuario. 
+    Si el usuario pide un total 'diario', solo debes agrupar por la fecha. Si pide 'por tipo', solo agrupa por el tipo de servicio.
+
+    Columnas importantes:
+    - `FECHA_SOLICITUD`: Fecha del servicio.
+    - `CATEGORIA_SERVICIO`, `TIPO`: Categorías para agrupar.
+    - `CANTIDAD_SERVICIOS`, `TOTAL_HORAS`: Valores numéricos para sumar o promediar.
+
+    REGLA CLAVE: Nunca agregues un 'LIMIT'.
+    Pregunta original: "{pregunta_usuario}"
     """
     try:
         query_chain = create_sql_query_chain(llm_sql, db)
         sql_query = query_chain.invoke({"question": prompt_con_instrucciones})
-        st.code(sql_query.strip(), language='sql')
+        
+        # >> CAMBIO: Limpiamos la consulta para evitar errores de sintaxis
+        sql_query = re.sub(r"^\s*```sql\s*|\s*```\s*$", "", sql_query, flags=re.IGNORECASE).strip()
+
+        st.code(sql_query, language='sql')
         with st.spinner("⏳ Ejecutando la consulta en la base de datos..."):
             with db._engine.connect() as conn:
                 df = pd.read_sql(text(sql_query), conn)
@@ -131,10 +140,14 @@ def ejecutar_sql_real(pregunta_usuario: str):
         st.warning(f"❌ Error en la consulta directa. Intentando un método alternativo... Error: {e}")
         return {"sql": None, "df": None, "error": str(e)}
 
+# REEMPLAZA TAMBIÉN ESTA OTRA FUNCIÓN
 def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
     st.info("🤔 La consulta directa falló. Activando el agente SQL experto de IANA como plan B.")
+    
+    # >> CAMBIO: Le ordenamos explícitamente que devuelva TODOS los resultados.
     prompt_sql = (
         "Responde consultando la BD. Devuelve un resultado legible en tabla/resumen. "
+        "IMPORTANTE: Devuelve SIEMPRE TODOS los resultados que coincidan, no solo una muestra. "
         "Responde siempre en español. "
         "Pregunta: "
         f"{pregunta_usuario}"
@@ -304,5 +317,6 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
