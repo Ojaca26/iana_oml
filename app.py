@@ -10,14 +10,21 @@ from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.chains import create_sql_query_chain
 
-
 # ============================================
 # 0) Configuración de la Página y Título
 # ============================================
-st.set_page_config(page_title="IANA para OML", page_icon="👩‍💻", layout="wide")
-st.title("👩‍💻 IANA: Tu Asistente IA para Análisis de Datos")
-st.markdown("Soy **IANA**, la red de agentes IA de **OML**. Hazme una pregunta sobre los datos de **Farmacapsulas**.")
+st.set_page_config(page_title="IANA para OML", page_icon="logo.png", layout="wide")
 
+# Creamos columnas para alinear el logo y el título
+col1, col2 = st.columns([1, 4]) 
+
+with col1:
+    # Simplemente usa el nombre del archivo local
+    st.image("logo.png", width=120)
+
+with col2:
+    st.title("IANA: Tu Asistente IA para Análisis de Datos")
+    st.markdown("Soy la red de agentes IA de **OML**. Hazme una pregunta sobre los datos de **Farmacapsulas**.")
 
 # ============================================
 # 1) Conexión a la Base de Datos y LLMs (con caché para eficiencia)
@@ -273,4 +280,5 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
