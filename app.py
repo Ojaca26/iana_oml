@@ -216,6 +216,7 @@ def obtener_datos_sql(pregunta_usuario: str) -> dict:
     res_nat = ejecutar_sql_en_lenguaje_natural(pregunta_usuario)
     return {"sql": None, "df": res_nat["df"], "texto": res_nat["texto"]}
 
+
 def orquestador(pregunta_usuario: str, chat_history: list):
     with st.expander("⚙️ Ver Proceso de IANA", expanded=False):
         st.info(f"🚀 Recibido: '{pregunta_usuario}'")
@@ -226,27 +227,29 @@ def orquestador(pregunta_usuario: str, chat_history: list):
         if clasificacion == "conversacional":
             return responder_conversacion(pregunta_usuario)
 
-        # --- INICIO DE LA LÓGICA DE MEMORIA MEJORADA ---
+        # --- INICIO DE LA LÓGICA DE MEMORIA CORREGIDA ---
         if clasificacion == "analista":
-            # 1. Definimos palabras clave que indican una continuación
             palabras_clave_contexto = [
                 "esto", "esos", "esa", "información", 
                 "datos", "tabla", "anterior", "acabas de dar"
             ]
+            # Usamos una expresión más simple para verificar si la pregunta es sobre el contexto
             es_pregunta_de_contexto = any(palabra in pregunta_usuario.lower() for palabra in palabras_clave_contexto)
 
-            # 2. Revisa el último mensaje en el historial
-            if chat_history and len(chat_history) > 0:
-                ultimo_mensaje = chat_history[-1]
-                if ultimo_mensaje["role"] == "assistant" and "df" in ultimo_mensaje["content"]:
-                    df_contexto = ultimo_mensaje["content"]["df"]
+            # >> CORRECCIÓN CLAVE: Ahora miramos el penúltimo mensaje (la respuesta anterior de IANA)
+            # y nos aseguramos de que el historial tenga al menos 2 mensajes.
+            if es_pregunta_de_contexto and len(chat_history) > 1:
+                mensaje_anterior = chat_history[-2] # El penúltimo mensaje
+                
+                if mensaje_anterior["role"] == "assistant" and "df" in mensaje_anterior["content"]:
+                    df_contexto = mensaje_anterior["content"]["df"]
                     
-                    # 3. USA LA MEMORIA SÓLO SI es una pregunta de contexto
-                    if df_contexto is not None and not df_contexto.empty and es_pregunta_de_contexto:
+                    if df_contexto is not None and not df_contexto.empty:
                         st.info("💡 Usando datos de la conversación anterior para el análisis...")
                         analisis = analizar_con_datos(pregunta_usuario, "Datos de la tabla anterior.", df_contexto)
+                        # Devolvemos la tabla anterior junto con el nuevo análisis para mantenerla visible
                         return {"tipo": "analista", "df": df_contexto, "texto": None, "analisis": analisis}
-        # --- FIN DE LA LÓGICA DE MEMORIA MEJORADA ---
+        # --- FIN DE LA LÓGICA DE MEMORIA CORREGIDA ---
 
         # Si no es una pregunta de contexto, sigue el flujo normal
         res_datos = obtener_datos_sql(pregunta_usuario)
@@ -301,4 +304,5 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
