@@ -18,7 +18,6 @@ st.set_page_config(page_title="IANA para OML", page_icon="👩‍💻", layout="
 st.title("👩‍💻 IANA: Tu Asistente IA para Análisis de Datos")
 st.markdown("Soy **IANA**, la red de agentes IA de **OML**. Hazme una pregunta sobre los datos de **Farmacapsulas**.")
 
-
 # ============================================
 # 1) Conexión a la Base de Datos y LLMs (con caché para eficiencia)
 # ============================================
@@ -99,12 +98,19 @@ def _df_preview(df: pd.DataFrame, n: int = 20) -> str:
 def ejecutar_sql_real(pregunta_usuario: str):
     st.info("🤖 Entendido. El agente de datos de IANA está traduciendo tu pregunta a SQL...")
     prompt_con_instrucciones = f"""
-    Considerando la pregunta del usuario, genera una consulta SQL.
-    IMPORTANTE: Si agregas o calculas una columna, usa uno de los siguientes alias estándar:
-    - Para valores monetarios o conteos: 'total_valor'
-    - Para fechas o periodos: 'fecha'
-    - Para categorías (rubros, proveedores, etc.): 'categoria'
-    Pregunta original: "{pregunta_usuario}"
+    Tu tarea es generar una consulta SQL para una tabla llamada 'data_farma' basada en la pregunta del usuario.
+
+    Aquí están las columnas más importantes y sus significados:
+    - `FECHA_SOLICITUD`: La fecha en que se solicitó el servicio (DATE).
+    - `CATEGORIA_SERVICIO`: La categoría principal del servicio (TEXT). Ej: 'Mantenimiento', 'Instalación'.
+    - `TIPO`: Un subtipo o clasificación del servicio (TEXT).
+    - `CANTIDAD_SERVICIOS`: El conteo de servicios realizados. Úsalo para preguntas sobre "cuántos", "cantidad", "número de servicios" (INT).
+    - `TOTAL_HORAS`: El total de horas dedicadas a un servicio (INT).
+    - `TIEMPO_MEDIO_ESPERA_HORAS`: Tiempo promedio de espera (DECIMAL).
+
+    REGLA CLAVE: Nunca agregues un 'LIMIT' a la consulta a menos que el usuario lo pida explícitamente.
+
+    Pregunta original del usuario: "{pregunta_usuario}"
     """
     try:
         query_chain = create_sql_query_chain(llm_sql, db)
@@ -141,12 +147,11 @@ def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
 def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame | None):
     st.info("\n🧠 Ahora, el analista experto de IANA está examinando los datos para encontrar insights clave...")
     df_resumen = _df_preview(df, 20)
-    
-    # >> CAMBIO: Prompt reforzado con la nueva identidad
     prompt_analisis = f"""
     Tu nombre es IANA. Eres un analista de datos senior de la red de agentes IA de la empresa OML.
     Tu tarea es darle respuestas claras y ejecutivas a su cliente, Farmacapsulas, basándote en los datos proporcionados.
-    
+    Los datos tratan sobre la prestación de servicios, con métricas clave como `CANTIDAD_SERVICIOS` y `TOTAL_HORAS`, y categorías como `CATEGORIA_SERVICIO` y `TIPO`.
+
     Pregunta original del usuario: {pregunta_usuario}
     
     Datos/Resultados disponibles para tu análisis:
@@ -206,7 +211,6 @@ def orquestador(pregunta_usuario: str):
 # ============================================
 
 if "messages" not in st.session_state:
-    # >> CAMBIO: Mensaje de bienvenida de IANA
     st.session_state.messages = [
         {"role": "assistant", "content": {"texto": "¡Hola! Soy IANA, tu asistente de IA de OML. Estoy lista para analizar los datos de Farmacapsulas. ¿Qué te gustaría saber?"}}
     ]
@@ -229,7 +233,6 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
         with st.chat_message("assistant"):
             res = orquestador(prompt)
             
-            # >> CAMBIO: Título de la respuesta personalizado
             st.markdown(f"### IANA responde a: '{prompt}'")
             if res.get("df") is not None and not res["df"].empty:
                 st.dataframe(res["df"])
@@ -238,9 +241,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
             
             if res.get("analisis"):
                 st.markdown("---")
-                # >> CAMBIO: Título del análisis personalizado
                 st.markdown("### 🧠 Análisis de IANA para Farmacapsulas")
                 st.markdown(res["analisis"])
                 
-
             st.session_state.messages.append({"role": "assistant", "content": res})
