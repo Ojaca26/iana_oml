@@ -182,7 +182,8 @@ def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame
     1.  Inicia con el título: "Análisis Ejecutivo de Datos para Farmacapsulas".
     2.  Debajo del título, presenta tus conclusiones como una lista de ítems (viñetas con markdown `-`).
     3.  Cada ítem debe ser una oración corta, clara y directa al punto.
-    4.  Limita el análisis a un máximo de 3 o 4 ítems clave. No escribas párrafos largos.
+    4.  Limita el análisis a un máximo de 5 ítems clave; si el cliente especifica una cantidad de ítems, genera el número exacto que pidió.
+    5.  No escribas párrafos largos.
 
     Pregunta del usuario: {pregunta_usuario}
     Datos disponibles para tu análisis:
@@ -323,6 +324,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
