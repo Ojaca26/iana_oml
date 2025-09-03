@@ -18,6 +18,7 @@ st.set_page_config(page_title="IANA para OML", page_icon="👩‍💻", layout="
 st.title("👩‍💻 IANA: Tu Asistente IA para Análisis de Datos")
 st.markdown("Soy **IANA**, la red de agentes IA de **OML**. Hazme una pregunta sobre los datos de **Farmacapsulas**.")
 
+
 # ============================================
 # 1) Conexión a la Base de Datos y LLMs (con caché para eficiencia)
 # ============================================
@@ -32,6 +33,7 @@ def get_database_connection():
             db_host = st.secrets["db_credentials"]["host"]
             db_name = st.secrets["db_credentials"]["database"]
             uri = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}"
+            # Nota: La tabla se especifica aquí para la conexión, pero no se mencionará al usuario.
             db = SQLDatabase.from_uri(uri, include_tables=["data_farma"])
             st.success("✅ Conexión a la base de datos establecida.")
             return db
@@ -97,8 +99,9 @@ def _df_preview(df: pd.DataFrame, n: int = 20) -> str:
 
 def ejecutar_sql_real(pregunta_usuario: str):
     st.info("🤖 Entendido. El agente de datos de IANA está traduciendo tu pregunta a SQL...")
+    # >> CAMBIO: Eliminada la mención a 'data_farma' que podría ver el usuario.
     prompt_con_instrucciones = f"""
-    Tu tarea es generar una consulta SQL para una tabla llamada 'data_farma' basada en la pregunta del usuario.
+    Tu tarea es generar una consulta SQL para los datos de Farmacapsulas basada en la pregunta del usuario.
     Aquí están las columnas más importantes y sus significados:
     - `FECHA_SOLICITUD`: La fecha en que se solicitó el servicio (DATE).
     - `CATEGORIA_SERVICIO`: La categoría principal del servicio (TEXT).
@@ -160,14 +163,14 @@ def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame
     st.success("💡 ¡Análisis completado!")
     return analisis
 
-# --- NUEVA FUNCIÓN PARA PERSONALIDAD ---
 def responder_conversacion(pregunta_usuario: str):
     """Activa el modo conversacional de IANA."""
     st.info("💬 Activando modo de conversación...")
+    # >> CAMBIO: Eliminada la mención a 'data_farma'.
     prompt_personalidad = f"""
     Tu nombre es IANA, una asistente de IA de OML para su cliente Farmacapsulas.
     Tu personalidad es amable, servicial y profesional.
-    Tu objetivo principal es ayudar a analizar datos de la tabla 'data_farma', pero puedes responder a preguntas generales sobre quién eres y qué puedes hacer.
+    Tu objetivo principal es ayudar a analizar los datos de Farmacapsulas.
     Ejemplos de lo que puedes hacer es: "Puedo contar cuántos servicios se hicieron por mes", "puedo analizar las horas totales por tipo de servicio", etc.
     NO intentes generar código SQL. Solo responde de forma conversacional.
     Responde siempre en español.
@@ -175,18 +178,18 @@ def responder_conversacion(pregunta_usuario: str):
     Pregunta del usuario: "{pregunta_usuario}"
     """
     respuesta = llm_analista.invoke(prompt_personalidad).content
-    # Usamos la clave "analisis" para mostrar la respuesta en la UI
-    return {"analisis": respuesta, "df": None, "texto": None}
+    # Usamos la clave "texto" para la respuesta principal y "analisis" como nulo.
+    return {"texto": respuesta, "df": None, "analisis": None}
 
 # --- Orquestador Principal ---
 
 def clasificar_intencion(pregunta: str) -> str:
-    # >> CAMBIO: Se agrega la nueva intención 'conversacional'
+    # >> CAMBIO: Prompt mejorado para clasificar mejor las preguntas generales.
     prompt_orq = f"""
     Devuelve UNA sola palabra exacta según la intención del usuario:
-    - `consulta`: si pide extraer, filtrar o contar datos específicos.
-    - `analista`: si pide interpretar, resumir o recomendar acciones sobre datos.
-    - `conversacional`: si es un saludo, una pregunta general sobre tus capacidades (ej: '¿qué puedes hacer?') o no está relacionada con datos específicos.
+    - `consulta`: si pide extraer, filtrar o contar datos específicos. (Ej: 'cuántos servicios en abril?')
+    - `analista`: si pide interpretar, resumir o recomendar acciones sobre datos. (Ej: 'analiza las tendencias')
+    - `conversacional`: si es un saludo, una pregunta general sobre tus capacidades (Ej: '¿qué puedes hacer?' o '¿cómo me puedes ayudar?'), o no está relacionada con datos específicos.
     Mensaje: {pregunta}
     """
     clasificacion = llm_orq.invoke(prompt_orq).content.strip().lower().replace('"', '').replace("'", "")
@@ -207,22 +210,21 @@ def orquestador(pregunta_usuario: str):
             clasificacion = clasificar_intencion(pregunta_usuario)
         st.success(f"✅ ¡Intención detectada! Tarea: {clasificacion.upper()}.")
 
-        # >> CAMBIO: Nueva lógica para manejar la conversación
         if clasificacion == "conversacional":
             return responder_conversacion(pregunta_usuario)
 
-        # Lógica existente para consulta y análisis
         res_datos = obtener_datos_sql(pregunta_usuario)
         resultado = {"tipo": clasificacion, **res_datos, "analisis": None}
         
+        # >> CAMBIO: Lógica mejorada para evitar el doble mensaje de error.
         if clasificacion == "analista":
             if res_datos.get("df") is not None and not res_datos["df"].empty:
                 analisis = analizar_con_datos(pregunta_usuario, res_datos.get("texto", ""), res_datos["df"])
                 resultado["analisis"] = analisis
             else:
-                st.warning("No se pudieron obtener datos, por lo que no se puede realizar el análisis.")
-                resultado["analisis"] = "No se pudo generar un análisis porque no se obtuvieron datos."
-
+                # Si el análisis falla por falta de datos, mostramos un solo mensaje claro.
+                resultado["texto"] = "Para poder realizar un análisis, primero necesito datos. Por favor, haz una pregunta más específica para obtener la información que quieres analizar."
+                resultado["df"] = None # Nos aseguramos de que no haya tabla de datos
     return resultado
 
 # ============================================
@@ -240,7 +242,6 @@ for message in st.session_state.messages:
         if "df" in message["content"] and message["content"]["df"] is not None: st.dataframe(message["content"]["df"])
         if "analisis" in message["content"] and message["content"]["analisis"]: st.markdown(message["content"]["analisis"])
 
-
 if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas..."):
     if not all([db, llm_sql, llm_analista, llm_orq, agente_sql]):
         st.error("La aplicación no está completamente inicializada. Revisa los errores de conexión o de API key.")
@@ -253,9 +254,11 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
             res = orquestador(prompt)
             
             st.markdown(f"### IANA responde a: '{prompt}'")
+            # La lógica de visualización ahora es más simple
             if res.get("df") is not None and not res["df"].empty:
                 st.dataframe(res["df"])
-            elif res.get("texto"):
+            
+            if res.get("texto"):
                  st.markdown(res["texto"])
             
             if res.get("analisis"):
