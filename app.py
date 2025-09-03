@@ -145,18 +145,24 @@ def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
 
 def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame | None):
     st.info("\n🧠 Ahora, el analista experto de IANA está examinando los datos...")
-    df_resumen = _df_preview(df, 20)
+    
+    # >> CAMBIO CLAVE: Se añaden reglas de formato estrictas al prompt del analista.
     prompt_analisis = f"""
     Tu nombre es IANA. Eres un analista de datos senior de OML para su cliente Farmacapsulas.
-    Los datos tratan sobre la prestación de servicios, con métricas como `CANTIDAD_SERVICIOS` y `TOTAL_HORAS`, y categorías como `CATEGORIA_SERVICIO` y `TIPO`.
+    Tu tarea es generar un análisis ejecutivo, breve y fácil de leer para un gerente.
     Responde siempre en español.
 
-    Pregunta original del usuario: {pregunta_usuario}
-    Datos/Resultados disponibles para tu análisis:
-    TEXTO: {datos_texto}
-    TABLA (primeras filas): {df_resumen}
-    
-    Inicia tu respuesta con un título: "Análisis Ejecutivo de Datos para Farmacapsulas".
+    REGLAS DE FORMATO MUY IMPORTANTES:
+    1.  Inicia con el título: "Análisis Ejecutivo de Datos para Farmacapsulas".
+    2.  Debajo del título, presenta tus conclusiones como una lista de ítems (viñetas con markdown `-`).
+    3.  Cada ítem debe ser una oración corta, clara y directa al punto.
+    4.  Limita el análisis a un máximo de 3 o 4 ítems clave. No escribas párrafos largos.
+
+    Pregunta del usuario: {pregunta_usuario}
+    Datos disponibles para tu análisis:
+    {_df_preview(df, 20)}
+
+    Ahora, genera el análisis siguiendo estrictamente las reglas de formato.
     """
     with st.spinner("💡 Generando análisis y recomendaciones..."):
         analisis = llm_analista.invoke(prompt_analisis).content
@@ -267,3 +273,4 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
