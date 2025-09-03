@@ -99,17 +99,13 @@ def ejecutar_sql_real(pregunta_usuario: str):
     st.info("🤖 Entendido. El agente de datos de IANA está traduciendo tu pregunta a SQL...")
     prompt_con_instrucciones = f"""
     Tu tarea es generar una consulta SQL para una tabla llamada 'data_farma' basada en la pregunta del usuario.
-
     Aquí están las columnas más importantes y sus significados:
     - `FECHA_SOLICITUD`: La fecha en que se solicitó el servicio (DATE).
-    - `CATEGORIA_SERVICIO`: La categoría principal del servicio (TEXT). Ej: 'Mantenimiento', 'Instalación'.
+    - `CATEGORIA_SERVICIO`: La categoría principal del servicio (TEXT).
     - `TIPO`: Un subtipo o clasificación del servicio (TEXT).
-    - `CANTIDAD_SERVICIOS`: El conteo de servicios realizados. Úsalo para preguntas sobre "cuántos", "cantidad", "número de servicios" (INT).
-    - `TOTAL_HORAS`: El total de horas dedicadas a un servicio (INT).
-    - `TIEMPO_MEDIO_ESPERA_HORAS`: Tiempo promedio de espera (DECIMAL).
-
+    - `CANTIDAD_SERVICIOS`: El conteo de servicios realizados.
+    - `TOTAL_HORAS`: El total de horas dedicadas a un servicio.
     REGLA CLAVE: Nunca agregues un 'LIMIT' a la consulta a menos que el usuario lo pida explícitamente.
-
     Pregunta original del usuario: "{pregunta_usuario}"
     """
     try:
@@ -128,9 +124,9 @@ def ejecutar_sql_real(pregunta_usuario: str):
 def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
     st.info("🤔 La consulta directa falló. Activando el agente SQL experto de IANA como plan B.")
     prompt_sql = (
-        "Responde consultando la BD. Devuelve un resultado legible en tabla/resumen, "
-        "siempre organiza cronológicamente la información si esta dada en fechas, "
-        "sin explicar pasos internos. Limita a 200 filas si aplica. Pregunta: "
+        "Responde consultando la BD. Devuelve un resultado legible en tabla/resumen. "
+        "Responde siempre en español. "
+        "Pregunta: "
         f"{pregunta_usuario}"
     )
     try:
@@ -145,33 +141,52 @@ def ejecutar_sql_en_lenguaje_natural(pregunta_usuario: str):
         return {"texto": f"[SQL_ERROR] {e}", "df": pd.DataFrame()}
 
 def analizar_con_datos(pregunta_usuario: str, datos_texto: str, df: pd.DataFrame | None):
-    st.info("\n🧠 Ahora, el analista experto de IANA está examinando los datos para encontrar insights clave...")
+    st.info("\n🧠 Ahora, el analista experto de IANA está examinando los datos...")
     df_resumen = _df_preview(df, 20)
     prompt_analisis = f"""
-    Tu nombre es IANA. Eres un analista de datos senior de la red de agentes IA de la empresa OML.
-    Tu tarea es darle respuestas claras y ejecutivas a su cliente, Farmacapsulas, basándote en los datos proporcionados.
-    Los datos tratan sobre la prestación de servicios, con métricas clave como `CANTIDAD_SERVICIOS` y `TOTAL_HORAS`, y categorías como `CATEGORIA_SERVICIO` y `TIPO`.
+    Tu nombre es IANA. Eres un analista de datos senior de OML para su cliente Farmacapsulas.
+    Los datos tratan sobre la prestación de servicios, con métricas como `CANTIDAD_SERVICIOS` y `TOTAL_HORAS`, y categorías como `CATEGORIA_SERVICIO` y `TIPO`.
+    Responde siempre en español.
 
     Pregunta original del usuario: {pregunta_usuario}
-    
     Datos/Resultados disponibles para tu análisis:
     TEXTO: {datos_texto}
     TABLA (primeras filas): {df_resumen}
     
     Inicia tu respuesta con un título: "Análisis Ejecutivo de Datos para Farmacapsulas".
     """
-    with st.spinner("💡 Generando análisis y recomendaciones para Farmacapsulas..."):
+    with st.spinner("💡 Generando análisis y recomendaciones..."):
         analisis = llm_analista.invoke(prompt_analisis).content
     st.success("💡 ¡Análisis completado!")
     return analisis
 
+# --- NUEVA FUNCIÓN PARA PERSONALIDAD ---
+def responder_conversacion(pregunta_usuario: str):
+    """Activa el modo conversacional de IANA."""
+    st.info("💬 Activando modo de conversación...")
+    prompt_personalidad = f"""
+    Tu nombre es IANA, una asistente de IA de OML para su cliente Farmacapsulas.
+    Tu personalidad es amable, servicial y profesional.
+    Tu objetivo principal es ayudar a analizar datos de la tabla 'data_farma', pero puedes responder a preguntas generales sobre quién eres y qué puedes hacer.
+    Ejemplos de lo que puedes hacer es: "Puedo contar cuántos servicios se hicieron por mes", "puedo analizar las horas totales por tipo de servicio", etc.
+    NO intentes generar código SQL. Solo responde de forma conversacional.
+    Responde siempre en español.
+
+    Pregunta del usuario: "{pregunta_usuario}"
+    """
+    respuesta = llm_analista.invoke(prompt_personalidad).content
+    # Usamos la clave "analisis" para mostrar la respuesta en la UI
+    return {"analisis": respuesta, "df": None, "texto": None}
+
 # --- Orquestador Principal ---
 
 def clasificar_intencion(pregunta: str) -> str:
+    # >> CAMBIO: Se agrega la nueva intención 'conversacional'
     prompt_orq = f"""
-    Devuelve UNA sola palabra exacta según la intención:
-    - `consulta` -> si el usuario pide extraer/filtrar/contar datos.
-    - `analista` -> si el usuario pide interpretar y recomendar acciones.
+    Devuelve UNA sola palabra exacta según la intención del usuario:
+    - `consulta`: si pide extraer, filtrar o contar datos específicos.
+    - `analista`: si pide interpretar, resumir o recomendar acciones sobre datos.
+    - `conversacional`: si es un saludo, una pregunta general sobre tus capacidades (ej: '¿qué puedes hacer?') o no está relacionada con datos específicos.
     Mensaje: {pregunta}
     """
     clasificacion = llm_orq.invoke(prompt_orq).content.strip().lower().replace('"', '').replace("'", "")
@@ -192,11 +207,15 @@ def orquestador(pregunta_usuario: str):
             clasificacion = clasificar_intencion(pregunta_usuario)
         st.success(f"✅ ¡Intención detectada! Tarea: {clasificacion.upper()}.")
 
+        # >> CAMBIO: Nueva lógica para manejar la conversación
+        if clasificacion == "conversacional":
+            return responder_conversacion(pregunta_usuario)
+
+        # Lógica existente para consulta y análisis
         res_datos = obtener_datos_sql(pregunta_usuario)
-        
         resultado = {"tipo": clasificacion, **res_datos, "analisis": None}
         
-        if "analista" in clasificacion:
+        if clasificacion == "analista":
             if res_datos.get("df") is not None and not res_datos["df"].empty:
                 analisis = analizar_con_datos(pregunta_usuario, res_datos.get("texto", ""), res_datos["df"])
                 resultado["analisis"] = analisis
