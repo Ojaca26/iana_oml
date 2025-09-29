@@ -54,9 +54,9 @@ def get_llms():
     with st.spinner("🧠 Inicializando la red de agentes IANA..."):
         try:
             api_key = st.secrets["google_api_key"]
-            llm_sql = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.1, google_api_key=api_key)
-            llm_analista = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.1, google_api_key=api_key)
-            llm_orq = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.0, google_api_key=api_key)
+            llm_sql = ChatGoogleGenerativeAI(model="models/gemini-1.5-pro", temperature=0.1, google_api_key=api_key)
+            llm_analista = ChatGoogleGenerativeAI(model="models/gemini-1.5-pro", temperature=0.1, google_api_key=api_key)
+            llm_orq = ChatGoogleGenerativeAI(model="models/gemini-1.5-pro", temperature=0.0, google_api_key=api_key)
             st.success("✅ Agentes de IANA listos.")
             return llm_sql, llm_analista, llm_orq
         except Exception as e:
@@ -324,6 +324,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
