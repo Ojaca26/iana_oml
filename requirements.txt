@@ -5,3 +5,5 @@ langchain
 langchain-community
 SQLAlchemy
 PyMySQL
+langchain-google-vertexai
+google-cloud-aiplatform
