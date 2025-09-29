@@ -59,19 +59,19 @@ def get_llms():
             os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
     
             llm_sql = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro-latest",
+                model="gemini-pro",
                 temperature=0.1,
                 google_api_key=api_key,
                 location="us-central1"  # <-- AÑADE ESTO
             )
             llm_analista = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro-latest",
+                model="gemini-pro",
                 temperature=0.1,
                 google_api_key=api_key,
                 location="us-central1"  # <-- AÑADE ESTO
             )
             llm_orq = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro-latest",
+                model="gemini-pro",
                 temperature=0.0,
                 google_api_key=api_key,
                 location="us-central1"  # <-- AÑADE ESTO
@@ -345,6 +345,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
