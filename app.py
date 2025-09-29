@@ -58,31 +58,25 @@ def get_llms():
             api_key = st.secrets["google_api_key"]
             project_id = st.secrets["google_project_id"]
             os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-    
-            llm_sql = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.1,
-                google_api_key=api_key,
-                location="us-central1"  # <-- AÑADE ESTO
+            location = "us-central1"
+            model_name = "gemini-pro"
+
+            # VERIFICA QUE LA CLASE SEA ChatVertexAI
+            llm_sql = ChatVertexAI(
+                model_name=model_name, temperature=0.1, location=location
             )
-            llm_analista = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.1,
-                google_api_key=api_key,
-                location="us-central1"  # <-- AÑADE ESTO
+            llm_analista = ChatVertexAI(
+                model_name=model_name, temperature=0.1, location=location
             )
-            llm_orq = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.0,
-                google_api_key=api_key,
-                location="us-central1"  # <-- AÑADE ESTO
+            llm_orq = ChatVertexAI(
+                model_name=model_name, temperature=0.0, location=location
             )
             
             st.success("✅ Agentes de IANA listos.")
             return llm_sql, llm_analista, llm_orq
         
         except Exception as e:
-            st.error(f"Error al inicializar los LLMs. Asegúrate de que tu API key es correcta. Error: {e}")
+            st.error(f"Error al inicializar los LLMs con VertexAI. Revisa la configuración. Error: {e}")
             return None, None, None
 
 db = get_database_connection()
@@ -346,6 +340,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
