@@ -54,6 +54,11 @@ def get_llms():
     with st.spinner("🧠 Inicializando la red de agentes IANA..."):
         try:
             api_key = st.secrets["google_api_key"]
+            project_id = st.secrets["google_project_id"]
+            
+           # 2. Configura el proyecto en el entorno para que LangChain lo detecte
+            os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+            
             llm_sql = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.1, google_api_key=api_key)
             llm_analista = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.1, google_api_key=api_key)
             llm_orq = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0.0, google_api_key=api_key)
@@ -324,6 +329,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
