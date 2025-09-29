@@ -58,27 +58,28 @@ def get_llms():
             project_id = st.secrets["google_project_id"]
             os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
     
-    llm_sql = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro-latest",
-        temperature=0.1,
-        google_api_key=api_key,
-        location="us-central1"  # <-- AÑADE ESTO
-    )
-    llm_analista = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro-latest",
-        temperature=0.1,
-        google_api_key=api_key,
-        location="us-central1"  # <-- AÑADE ESTO
-    )
-    llm_orq = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro-latest",
-        temperature=0.0,
-        google_api_key=api_key,
-        location="us-central1"  # <-- AÑADE ESTO
-    )
+            llm_sql = ChatGoogleGenerativeAI(
+                model="gemini-1.5-pro-latest",
+                temperature=0.1,
+                google_api_key=api_key,
+                location="us-central1"  # <-- AÑADE ESTO
+            )
+            llm_analista = ChatGoogleGenerativeAI(
+                model="gemini-1.5-pro-latest",
+                temperature=0.1,
+                google_api_key=api_key,
+                location="us-central1"  # <-- AÑADE ESTO
+            )
+            llm_orq = ChatGoogleGenerativeAI(
+                model="gemini-1.5-pro-latest",
+                temperature=0.0,
+                google_api_key=api_key,
+                location="us-central1"  # <-- AÑADE ESTO
+            )
             
             st.success("✅ Agentes de IANA listos.")
             return llm_sql, llm_analista, llm_orq
+        
         except Exception as e:
             st.error(f"Error al inicializar los LLMs. Asegúrate de que tu API key es correcta. Error: {e}")
             return None, None, None
@@ -344,6 +345,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
