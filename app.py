@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import re
+import os
 from sqlalchemy import text
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.utilities import SQLDatabase
@@ -329,6 +330,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
