@@ -10,6 +10,7 @@ from langchain_community.utilities import SQLDatabase
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.chains import create_sql_query_chain
+from langchain_google_vertexai import ChatVertexAI
 
 # ============================================
 # 0) Configuración de la Página y Título
@@ -345,6 +346,7 @@ if prompt := st.chat_input("Pregúntale a IANA sobre los datos de Farmacapsulas.
                 st.markdown(res["analisis"])
                 
             st.session_state.messages.append({"role": "assistant", "content": res})
+
 
 
 
